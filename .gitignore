@@ -1,0 +1,41 @@
+# --- Python 通用忽略项 ---
+# 字节码文件，不应该提交
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- 虚拟环境 ---
+# 你的本地 Python 环境，别人 clone 下来后应该自己创建
+.venv/
+venv/
+env/
+ENV/
+
+# --- 项目特定数据目录 (重要) ---
+# 1. 输入数据：包含大量 PDF，体积大且可能涉及版权，不应提交
+00_inbox_pdfs/
+
+# 2. 输出数据：脚本运行生成的 JSON 和 CSV 结果，属于运行产物，不应提交
+01_extracted_json/
+02_summary_csv/
+
+# 3. 运行时日志：包含错误信息的日志文件
+error_log.txt
+
+# --- 敏感信息与配置 ---
+# 包含 API Key 的环境变量文件（虽然你目前可能在命令行设置，但防止未来误用）
+.env
+.env.local
+
+# --- IDE 与 系统文件 ---
+# VSCode 配置（个人偏好配置不应提交，除非是团队共享配置）
+.vscode/
+.idea/
+
+# Windows/Mac 系统生成的缩略图缓存
+Thumbs.db
+.DS_Store
+
+# --- 其他临时文件 ---
+# 临时文件和备份文件
+.gemini-clipboard/
