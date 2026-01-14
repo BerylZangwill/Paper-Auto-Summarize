@@ -39,3 +39,12 @@ Thumbs.db
 # --- 其他临时文件 ---
 # 临时文件和备份文件
 .gemini-clipboard/
+.claude/
+# Feedback and suggestions/
+03_visualizations/
+
+# Claude AI 临时工作目录
+tmpclaude-*-cwd
+
+备份/
+Feedback and suggestions/

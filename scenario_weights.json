@@ -1,0 +1,66 @@
+{
+  "description": "P1.1权重自适应评分系统 - 场景权重配置库",
+  "version": "1.0",
+  "created_date": "2026-01-13",
+  "default": {
+    "name": "综合均衡型（P0默认）",
+    "description": "不偏重任何维度，寻找综合水平高的论文",
+    "weights": {
+      "rigor": 0.30,
+      "innovation": 0.25,
+      "practicality": 0.25,
+      "impact": 0.15,
+      "readability": 0.05
+    }
+  },
+  "scenarios": {
+    "应用导向型": {
+      "name": "应用导向型",
+      "description": "寻找具有强实用价值、可直接指导实践的论文",
+      "weights": {
+        "rigor": 0.25,
+        "innovation": 0.15,
+        "practicality": 0.40,
+        "impact": 0.15,
+        "readability": 0.05
+      },
+      "use_cases": [
+        "学校想引入AI辅助教学，需要找有成熟案例的论文",
+        "企业想优化流程，需要找有具体工具/方法的研究",
+        "教师设计新课程，需要找可直接借鉴的教学方案"
+      ]
+    },
+    "理论突破型": {
+      "name": "理论突破型",
+      "description": "寻找具有创新性突破、推动学科发展的论文",
+      "weights": {
+        "rigor": 0.25,
+        "innovation": 0.40,
+        "practicality": 0.10,
+        "impact": 0.20,
+        "readability": 0.05
+      },
+      "use_cases": [
+        "博士生需要找学位论文的理论基础",
+        "新技术领域研究员想了解最前沿的思想框架",
+        "学科评估时需要找代表性的创新论文"
+      ]
+    },
+    "综合均衡型": {
+      "name": "综合均衡型",
+      "description": "综合高质量的论文，不偏重任何维度（与P0相同）",
+      "weights": {
+        "rigor": 0.30,
+        "innovation": 0.25,
+        "practicality": 0.25,
+        "impact": 0.15,
+        "readability": 0.05
+      },
+      "use_cases": [
+        "教学设计师为新课程找综合支撑材料",
+        "学科主任想了解本领域当前整体研究水平",
+        "综述论文作者选择代表性文献"
+      ]
+    }
+  }
+}

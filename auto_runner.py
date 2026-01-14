@@ -73,26 +73,33 @@ MAX_PDF_CHARS = 30000
 ALL_CSV_NAME = "_all_papers.csv"
 
 # ============================================================
-# CSV字段配置
+# CSV字段配置（按用户期望顺序排列）
 # ============================================================
-FIELD_MAP = {
-    "title": "标题",
-    "authors": "作者",
+CSV_FIELD_MAP = {
+    "index": "编号",
     "year": "年份",
     "venue": "期刊",
-    "doi": "DOI",
-    "keywords": "关键词",
-    "domain_tags": "领域标签",
+    "authors": "作者",
+    "title": "标题",
     "paper_type": "论文类型",
-    "problem": "研究问题",
+    "domain_tags": "领域标签",
+    "keywords": "关键词",
     "research_object": "研究对象",
     "methodology": "研究方法",
+    "problem": "研究问题",
     "conclusion": "核心结论",
+    "implementation_path": "具体实现路径_简明",
     "contribution": "主要贡献",
-    "source_folder": "来源文件夹",
+    "score_rigor": "学术严谨度",
+    "score_innovation": "创新程度",
+    "score_practicality": "实用价值",
+    "score_impact": "影响范围",
+    "score_readability": "可读性",
+    "overall_score": "综合评分",
+    "recommendation_level": "推荐等级",
 }
 
-CSV_FIELDS = list(FIELD_MAP.keys())
+CSV_FIELDS = list(CSV_FIELD_MAP.keys())
 
 # ============================================================
 # 数据结构
@@ -168,6 +175,94 @@ def log_error(filename: str, error: str):
     with open(ERROR_LOG, 'a', encoding='utf-8') as f:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"[{timestamp}] {filename}: {error}\n")
+
+
+def extract_number_from_filename(filename: str) -> str:
+    """从文件名提取编号前缀（如 01_xxx.pdf -> 01）"""
+    match = re.match(r'^(\d+)[_\-]', filename)
+    return match.group(1) if match else ""
+
+
+def format_list_as_numbered(val) -> str:
+    """将数组转为编号文本，单元素直接返回"""
+    if isinstance(val, list):
+        if len(val) == 0:
+            return ""
+        if len(val) == 1:
+            return str(val[0])
+        return "\n".join(f"{i+1}. {item}" for i, item in enumerate(val))
+    return str(val) if val is not None else ""
+
+
+def extract_scores_from_json(json_obj: dict) -> dict:
+    """
+    从JSON中提取评分信息
+
+    Args:
+        json_obj: LLM返回的完整JSON对象
+
+    Returns:
+        dict: {score_rigor, score_innovation, score_practicality, score_impact, score_readability, overall_score, recommendation_level}
+    """
+    scores = json_obj.get("scores", {})
+    recommendation = json_obj.get("recommendation", {})
+
+    return {
+        "score_rigor": scores.get("rigor", ""),
+        "score_innovation": scores.get("innovation", ""),
+        "score_practicality": scores.get("practicality", ""),
+        "score_impact": scores.get("impact", ""),
+        "score_readability": scores.get("readability", ""),
+        "overall_score": scores.get("overall", ""),
+        "recommendation_level": recommendation.get("level", ""),
+    }
+
+
+def format_implementation_path(impl_path_dict) -> str:
+    """
+    将implementation_path字典转为CSV简明格式
+
+    格式: 维度 [关键词1 | 关键词2] → 描述
+
+    Args:
+        impl_path_dict: implementation_path字段的值（字典或其他格式）
+
+    Returns:
+        str: 格式化后的字符串（多行时用\n分隔）
+    """
+    if not impl_path_dict:
+        return ""
+
+    # 如果是字符串（旧格式兼容），直接返回
+    if isinstance(impl_path_dict, str):
+        return impl_path_dict
+
+    # 如果不是字典，转为字符串返回
+    if not isinstance(impl_path_dict, dict):
+        return str(impl_path_dict) if impl_path_dict else ""
+
+    lines = []
+    for idx, (key, value) in enumerate(impl_path_dict.items(), 1):
+        if isinstance(value, dict):
+            # 新结构：包含description和keywords
+            keywords = value.get("keywords", [])
+            description = value.get("description", "").strip()
+
+            # 构建关键词部分
+            if keywords:
+                keywords_str = " | ".join(str(kw) for kw in keywords)
+                lines.append(f"{idx}. {key} [{keywords_str}]")
+            else:
+                lines.append(f"{idx}. {key}")
+
+            # 添加描述行
+            if description:
+                lines.append(f"   → {description}")
+        else:
+            # 兼容旧格式（纯字符串）
+            lines.append(f"{idx}. {key}: {value}")
+
+    return "\n".join(lines)
 
 
 # ============================================================
@@ -527,6 +622,41 @@ def load_theme_buckets() -> str:
     return THEME_FILE.read_text(encoding='utf-8')
 
 
+def load_scoring_config(domain_tag: str) -> dict:
+    """
+    动态加载论文领域对应的评分配置
+
+    当前版本（P0）：始终返回标准权重
+    后期版本（P1+）：根据domain_tag加载对应领域的scoring_*.md文件
+
+    Args:
+        domain_tag: 论文的主题桶名称（如 "人工智能教育应用"）
+
+    Returns:
+        dict: 权重配置 {rigor, innovation, practicality, impact, readability}
+    """
+    # TODO: P1 实现动态加载
+    # domain_mapping = {
+    #     "人工智能教育应用": "education",
+    #     "教育理论研究": "education",
+    #     "工程应用": "engineering",
+    #     ...
+    # }
+    # domain = domain_mapping.get(domain_tag, "framework")
+    # scoring_file = BASE_DIR / "scoring" / f"scoring_{domain}.md"
+    # if scoring_file.exists():
+    #     return parse_scoring_config_from_markdown(scoring_file)
+
+    # 当前阶段：直接返回P0默认权重
+    return {
+        "rigor": 0.30,
+        "innovation": 0.25,
+        "practicality": 0.25,
+        "impact": 0.15,
+        "readability": 0.05
+    }
+
+
 def load_prompt_template() -> str:
     """读取Prompt模板"""
     return PROMPT_FILE.read_text(encoding='utf-8')
@@ -601,21 +731,52 @@ def init_csv(csv_path: Path):
     if not csv_path.exists():
         with open(csv_path, 'w', newline='', encoding='utf-8-sig') as f:
             writer = csv.writer(f)
-            headers = [FIELD_MAP[k] for k in CSV_FIELDS]
+            headers = [CSV_FIELD_MAP[k] for k in CSV_FIELDS]
             writer.writerow(headers)
 
 
-def append_to_csv(csv_path: Path, data: dict):
-    """追加数据到CSV"""
+def append_to_csv(csv_path: Path, data: dict, index_value: str = ""):
+    """
+    追加数据到CSV
+
+    Args:
+        csv_path: CSV文件路径
+        data: 论文数据字典
+        index_value: 编号值（分主题表用文件名编号，总表用全局编号）
+    """
+    # 先提取评分信息（如果JSON中包含scores字段）
+    scores_data = extract_scores_from_json(data)
+
     row = []
     for key in CSV_FIELDS:
-        val = data.get(key, "")
-        if isinstance(val, list):
-            val = ", ".join(str(v) for v in val)
-        elif val is None:
-            val = ""
-        row.append(val)
-    
+        if key == "index":
+            # 编号字段使用传入的index_value
+            row.append(index_value)
+        elif key in ("problem", "conclusion"):
+            # 研究问题和结论使用编号列表格式
+            val = data.get(key, "")
+            row.append(format_list_as_numbered(val))
+        elif key == "implementation_path":
+            # 实现路径使用格式化函数
+            val = data.get(key, "")
+            row.append(format_implementation_path(val))
+        elif key in ("keywords", "domain_tags"):
+            # 关键词和领域标签使用逗号分隔
+            val = data.get(key, [])
+            if isinstance(val, list):
+                row.append(", ".join(str(v) for v in val))
+            else:
+                row.append(str(val) if val else "")
+        elif key in ("score_rigor", "score_innovation", "score_practicality", "score_impact", "score_readability", "overall_score", "recommendation_level"):
+            # 评分字段从scores_data中取
+            val = scores_data.get(key, "")
+            row.append(str(val) if val else "")
+        else:
+            val = data.get(key, "")
+            if val is None:
+                val = ""
+            row.append(str(val))
+
     with open(csv_path, 'a', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         writer.writerow(row)
@@ -625,10 +786,24 @@ def process_folder(
     folder: FolderStatus,
     prompt_template: str,
     theme_content: str,
-    overwrite: bool = False
-) -> dict:
-    """处理单个文件夹"""
+    overwrite: bool = False,
+    global_index_start: int = 1
+) -> tuple[dict, int]:
+    """
+    处理单个文件夹
+
+    Args:
+        folder: 文件夹状态
+        prompt_template: Prompt模板
+        theme_content: 主题桶内容
+        overwrite: 是否覆盖已有结果
+        global_index_start: 全局编号起始值
+
+    Returns:
+        (统计字典, 下一个全局编号)
+    """
     stats = {"success": 0, "skip": 0, "fail": 0}
+    global_index = global_index_start
     
     # 确定输出路径
     json_folder = JSON_DIR / folder.name
@@ -654,7 +829,7 @@ def process_folder(
             stats["skip"] += 1
     
     if not to_process:
-        return stats
+        return stats, global_index
     
     # 处理每个PDF
     for i, pdf_path in enumerate(to_process, 1):
@@ -689,12 +864,16 @@ def process_folder(
                 json.dump(data, f, ensure_ascii=False, indent=2)
             print(f"      💾 JSON 保存成功")
             
-            # 追加CSV
-            append_to_csv(csv_path, data)
-            append_to_csv(all_csv_path, data)
-            print(f"      📝 CSV 更新成功")
-            
+            # 提取本地编号（从文件名）
+            local_index = extract_number_from_filename(pdf_path.name)
+
+            # 追加CSV（分主题表用本地编号，总表用全局编号）
+            append_to_csv(csv_path, data, index_value=local_index)
+            append_to_csv(all_csv_path, data, index_value=str(global_index))
+            print(f"      📝 CSV 更新成功 (本地编号: {local_index}, 全局编号: {global_index})")
+
             stats["success"] += 1
+            global_index += 1
             
         except json.JSONDecodeError as e:
             print(f"      ❌ JSON解析失败: {e}")
@@ -710,8 +889,8 @@ def process_folder(
         if i < len(to_process):
             print(f"      ⏳ 等待{REQUEST_INTERVAL}秒...")
             time.sleep(REQUEST_INTERVAL)
-    
-    return stats
+
+    return stats, global_index
 
 
 # ============================================================
@@ -766,26 +945,29 @@ def main():
     
     # 处理选中的文件夹
     total_stats = {"success": 0, "skip": 0, "fail": 0}
-    
+    global_index = 1  # 全局编号从1开始
+
     for idx in selected_indices:
         folder = folders[idx]
-        
+
         # 无待处理且非覆盖模式则跳过
         if not overwrite and folder.pending == 0:
             continue
-        
+
         print_separator("-")
         print("🚀 开始任务")
         print_separator("-")
         print(f"📁 正在处理: {folder.name}")
         print(f"   PDF数量: {folder.total_pdfs} | 已处理: {folder.processed} | 待处理: {folder.pending}")
         print_separator("-")
-        
-        stats = process_folder(folder, prompt_template, theme_content, overwrite)
-        
+
+        stats, global_index = process_folder(
+            folder, prompt_template, theme_content, overwrite, global_index
+        )
+
         for key in total_stats:
             total_stats[key] += stats[key]
-        
+
         print(f"\n   📊 本文件夹完成: 成功 {stats['success']} | 跳过 {stats['skip']} | 失败 {stats['fail']}")
     
     # 最终汇总
